@@ -21,7 +21,7 @@
 # Shared maker signature (see deb.sh / appimage.sh):
 #   rpm.sh <dist_dir> <version> <arch>
 #     <dist_dir>  staged electron-dist tree (default: build-linux/downloads/electron-dist)
-#     <version>   package version (default: $APP_VERSION env or 1.5.695)
+#     <version>   package version (default: $APP_VERSION env or 1.6.7)
 #     <arch>      rpm-native arch: x86_64 | aarch64 (default: host uname -m)
 # PACKAGE_NAME / WM_CLASS / MAINTAINER / DESCRIPTION come from the environment
 # (exported by build.sh); sane defaults apply when run standalone.
@@ -34,7 +34,7 @@ SCRIPTS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 #--- shared maker signature ----------------------------------------------------
 DIST="${1:-$PROJECT_ROOT/build-linux/downloads/electron-dist}"
-APP_VERSION="${2:-${APP_VERSION:-1.5.695}}"
+APP_VERSION="${2:-${APP_VERSION:-1.6.7}}"
 ARCH="${3:-$(uname -m)}"
 
 # RPM Version: cannot contain a hyphen, so split a combined

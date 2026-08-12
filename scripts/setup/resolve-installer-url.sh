@@ -6,7 +6,7 @@
 # Wispr Flow publishes a stable redirect endpoint that 302s to a versioned,
 # CDN-hosted Setup .exe whose filename embeds the version:
 #   https://dl.wisprflow.ai/windows/latest
-#     -> https://dl.wisprflow.com/wispr-flow/win32/x64/Wispr%20Flow%20Setup-v1.5.695.exe
+#     -> https://dl.wisprflow.com/wispr-flow/win32/x64/Wispr%20Flow%20Setup-v1.6.7.exe
 #
 # Only a Windows x64 build is published (the arm64 Windows endpoint redirects to
 # the homepage). The Linux arm64 package is built from the SAME x64 installer --

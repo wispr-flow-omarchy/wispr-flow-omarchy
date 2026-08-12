@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
-# linux-deeplink.sh -- fix cold-start `wispr-flow:` deep-link handling on Linux
-# in the Wispr Flow main bundle (.webpack/main/index.js).
+# linux-deeplink.sh -- fix `wispr-flow:` deep-link handling on Linux in the
+# Wispr Flow main bundle (.webpack/main/index.js).
 #
 # WHY THIS PATCH EXISTS
 # ---------------------
@@ -10,12 +10,9 @@
 # dispatcher (the minified `L(...)`). There are THREE delivery paths:
 #
 #   * macOS  -> the `open-url` Electron event (handled, platform-correct).
-#   * already-running app (any OS) -> the `second-instance` event, which scans
-#       the new instance's argv for a `wispr-flow:` URL. That handler IS
-#       platform-neutral in practice -- but note its inner argv scan is ALSO
-#       wrapped in `if(<isWin32>){...}` (see below), so on Linux a deep link to
-#       an already-running app falls through to the "focus the window" branch
-#       and the URL payload is dropped too. We do NOT touch that site here.
+#   * already-running app -> the `second-instance` event scans the new
+#       instance's argv for a `wispr-flow:` URL. Its scan is win32-gated, so
+#       Linux focuses the existing window but drops the URL payload.
 #   * COLD START (app not yet running) -> on Windows AND Linux the OS launches
 #       the app with the `wispr-flow:` URL appended to process.argv. The bundle
 #       parses it out at startup with:
@@ -29,7 +26,7 @@
 #       This block is gated to win32 ONLY. macOS doesn't need it (it uses
 #       open-url), but Linux DOES -- Linux delivers protocol URLs via argv just
 #       like Windows. So launching from a `wispr-flow:` link while the app is
-#       NOT running silently drops the URL on Linux. That is the bug.
+#       NOT running silently drops the URL on Linux.
 #
 # Confirmed against the shipped minified bytes (extract/.../main/index.js):
 #   ...quitting"),void e.app.quit();if(f.H8){const e=B(process.argv.find(
@@ -38,25 +35,27 @@
 # where `f.H8` resolves to the win32 flag (`H8:()=>c` with
 # `c="win32"===process.platform`; cf. `d.H8?"windows":d.tD?"macos"` and the
 # `tD`=darwin flag used by helper-resolver.sh). `process.argv.find` occurs
-# EXACTLY ONCE in the whole bundle, so it uniquely pins the cold-start site and
-# can never collide with the `second-instance` handler (which scans `r.find`).
+# EXACTLY ONCE in the whole bundle, so it uniquely pins the cold-start site.
+# The second-instance site is pinned separately by its preserved event name and
+# the handler argv variable captured from that event.
 #
-# THE PATCH (surgical, one site)
-# ------------------------------
-# Widen the win32 guard at THAT site only, so Linux is included:
+# THE PATCH (surgical, two delivery sites and one route)
+# ------------------------------------------------------
+# Widen the win32 guard at both URL-delivery sites so Linux is included:
 #
 #   if(f.H8){const e=B(process.argv.find(...
 #     becomes
-#   if(f.H8||"linux"===process.platform){/*WISPR_LINUX_DEEPLINK*/const e=B(...
+#   if(f.H8||"linux"===process.platform){/*...COLD_START*/const e=B(...
 #
-# We anchor on `process.argv.find` (a stable developer API call, unique in the
-# bundle) and capture the preceding `if(<winflag>){` -- where <winflag> is a
-# minified `obj.prop` accessor we read back out of the match rather than
-# hardcoding -- then rewrite just the `{` that opens that block. This cannot
-# regress Windows (f.H8 still wins) or macOS (neither branch is true; open-url
-# is unaffected). It does NOT touch any Squirrel/registry win32 logic elsewhere
-# that may share the same flag, because the edit is scoped to the single
-# `process.argv.find` cold-start site.
+# Cold start anchors on the unique `process.argv.find`. Warm start first derives
+# the second-instance handler's argv variable, then anchors on that variable's
+# `find` call plus the scheme literal. Both guards derive their minified win32
+# accessor from the match. No unrelated Squirrel/registry gate is touched.
+#
+# The existing `open/Settings/Language` special case gives us a stable route
+# anchor. Beside it we add `open/Settings/Shortcuts`, dispatching the app's own
+# `OpenShortcutsDialog` event so shortcut capture and conflict checks stay in
+# Wispr Flow instead of being duplicated by Linux desktop integration.
 #
 # Usage: linux-deeplink.sh [path-to-.webpack/main/index.js]
 #===============================================================================
@@ -75,10 +74,19 @@ if [[ ! -f "$BUNDLE" ]]; then
 fi
 
 # --- Idempotency guard --------------------------------------------------------
-LINUX_MARKER="WISPR_LINUX_DEEPLINK"
-if grep -q "$LINUX_MARKER" "$BUNDLE"; then
-	echo "Already patched ($LINUX_MARKER present in $BUNDLE) - nothing to do."
-	exit 0
+COLD_MARKER="WISPR_LINUX_DEEPLINK_COLD_START"
+SECOND_MARKER="WISPR_LINUX_DEEPLINK_SECOND_INSTANCE"
+SHORTCUTS_MARKER="WISPR_LINUX_DEEPLINK_SHORTCUTS_ROUTE"
+if grep -q 'WISPR_LINUX_DEEPLINK' "$BUNDLE"; then
+	if grep -q "$COLD_MARKER" "$BUNDLE" \
+		&& grep -q "$SECOND_MARKER" "$BUNDLE" \
+		&& grep -q "$SHORTCUTS_MARKER" "$BUNDLE"; then
+		echo "Already patched (all deep-link markers present in $BUNDLE)."
+		exit 0
+	fi
+	echo "ERROR: partial or superseded deep-link patch found in $BUNDLE." >&2
+	echo "       Restore the unpatched bundle before reapplying." >&2
+	exit 1
 fi
 
 # --- Backup -------------------------------------------------------------------
@@ -88,13 +96,12 @@ if [[ ! -f "$BUNDLE.orig" ]]; then
 fi
 
 # --- Patch (win32 flag accessor DERIVED, not hardcoded) -----------------------
-# The minified win32 accessor (`f.H8` today) churns between releases, so we read
-# it back out of the match. The STABLE anchor is the developer API call
-# `process.argv.find` plus the `wispr-flow:` scheme literal that follows it --
-# both survive minification and together occur exactly once.
-python3 - "$BUNDLE" "$LINUX_MARKER" <<'PY'
+# The minified win32 accessor (`f.H8` today) churns between releases, so each
+# site reads it back out of its own match.
+python3 - "$BUNDLE" "$COLD_MARKER" "$SECOND_MARKER" \
+	"$SHORTCUTS_MARKER" <<'PY'
 import sys, io, re
-path, marker = sys.argv[1], sys.argv[2]
+path, cold_marker, second_marker, shortcuts_marker = sys.argv[1:]
 with io.open(path, "r", encoding="utf-8", errors="surrogateescape") as f:
     data = f.read()
 
@@ -104,7 +111,7 @@ with io.open(path, "r", encoding="utf-8", errors="surrogateescape") as f:
 #
 #   if(<winflag>){const <v>=<B>(process.argv.find(<a>=>
 #       <a>.startsWith("wispr-flow:")
-anchor = re.compile(
+cold_anchor = re.compile(
     r'if\((?P<flag>[\w$]+(?:\.[\w$]+)?)\)\{'        # if(<winflag>){
     r'const\s+[\w$]+='                              #   const <v>=
     r'[\w$]+\('                                     #   <B>(
@@ -112,51 +119,135 @@ anchor = re.compile(
     r'(?P<a>[\w$]+)=>'                              #     <a>=>
     r'(?P=a)\.startsWith\("wispr-flow:"\)'          #     <a>.startsWith("wispr-flow:")
 )
-matches = list(anchor.finditer(data))
-if len(matches) != 1:
+cold_matches = list(cold_anchor.finditer(data))
+if len(cold_matches) != 1:
     sys.exit(
         f"ERROR: expected exactly 1 cold-start argv deep-link guard, "
-        f"found {len(matches)}. The bundle layout may have changed; "
+        f"found {len(cold_matches)}. The bundle layout may have changed; "
         f"inspect manually around `process.argv.find`."
     )
 
-flag = matches[0].group('flag')
+# Derive the second-instance handler's argv parameter from the preserved event
+# name. This keeps the later argv scan anchored even when minified names churn.
+handler_anchor = re.compile(
+    r'\.on\("second-instance",\('
+    r'(?P<event>[\w$]+),(?P<argv>[\w$]+)\)=>\{'
+)
+handler_matches = list(handler_anchor.finditer(data))
+if len(handler_matches) != 1:
+    sys.exit(
+        f"ERROR: expected exactly 1 second-instance handler, found "
+        f"{len(handler_matches)}. The bundle layout may have changed; inspect "
+        f"around the `second-instance` event."
+    )
+
+argv = re.escape(handler_matches[0].group('argv'))
+second_anchor = re.compile(
+    r'if\((?P<flag>[\w$]+(?:\.[\w$]+)?)\)\{'
+    r'const\s+[\w$]+='
+    r'[\w$]+\('
+    + argv + r'\.find\('
+    r'(?P<a>[\w$]+)=>'
+    r'(?P=a)\.startsWith\("wispr-flow:"\)'
+)
+second_matches = list(second_anchor.finditer(data))
+if len(second_matches) != 1:
+    sys.exit(
+        f"ERROR: expected exactly 1 second-instance argv deep-link guard, "
+        f"found {len(second_matches)}. The bundle layout may have changed; "
+        f"inspect around the handler argv `find`."
+    )
+
+# Add a Shortcuts sibling beside the existing Language special route. Capture
+# the dispatch function, hub window, event namespace, and subpage variable from
+# the preserved Language route so no minified identifier is hardcoded.
+route_anchor = re.compile(
+    r'(?P<language>'
+    r'if\("Language"===(?P<subpage>[\w$]+)\)'
+    r'(?P<dispatch>\(0,[\w$]+\.[\w$]+\)\()'
+    r'(?P<hub>[\w$]+(?:\.[\w$]+)*\.hubWindow),'
+    r'(?P<events>[\w$]+(?:\.[\w$]+)*)\.OpenSettings,'
+    r'\{page:"General",forceDialog:"language"\}\)'
+    r');else'
+)
+route_matches = list(route_anchor.finditer(data))
+if len(route_matches) != 1:
+    sys.exit(
+        f"ERROR: expected exactly 1 Settings/Language special route, found "
+        f"{len(route_matches)}. The bundle layout may have changed; inspect "
+        f"around `forceDialog:\"language\"`."
+    )
 
 # Widen the guard: insert the linux clause and the marker right after the `{`
 # that opens the win32-gated block. Build with concatenation so no `$N`/`$&`
 # sequence can be eaten by a replacement DSL (we use a lambda anyway).
-def widen(m):
+def widen(m, marker):
     head = m.group(0)
     open_brace = head.index('){') + 1   # position of `)` before `{`
     # head[:open_brace] == 'if(<flag>)'  ; head[open_brace:] == '{const ...'
     return (
-        'if(' + flag + '||"linux"===process.platform)'
+        'if(' + m.group('flag') + '||"linux"===process.platform)'
         '{/*' + marker + '*/'
         + head[open_brace + 1:]          # skip the original '{'
     )
 
-data, n = anchor.subn(widen, data, count=1)
-if n != 1:
-    sys.exit(f"ERROR: substitution applied {n} times (expected 1).")
+data, cold_n = cold_anchor.subn(
+    lambda m: widen(m, cold_marker), data, count=1
+)
+data, second_n = second_anchor.subn(
+    lambda m: widen(m, second_marker), data, count=1
+)
+def add_shortcuts_route(m):
+    return (
+        m.group('language')
+        + ';else if("Shortcuts"===' + m.group('subpage')
+        + '/*' + shortcuts_marker + '*/)'
+        + m.group('dispatch') + m.group('hub') + ','
+        + m.group('events') + '.OpenShortcutsDialog)'
+        + ';else'
+    )
+
+data, route_n = route_anchor.subn(add_shortcuts_route, data, count=1)
+if cold_n != 1 or second_n != 1 or route_n != 1:
+    sys.exit(
+        f"ERROR: substitutions applied cold={cold_n}, "
+        f"second-instance={second_n}, shortcuts-route={route_n} times "
+        f"(expected 1 each)."
+    )
 
 with io.open(path, "w", encoding="utf-8", errors="surrogateescape") as f:
     f.write(data)
-print(f"Patched: derived win32 flag={flag!r}; cold-start argv guard widened "
-      f"to include linux (1 site).")
+print(
+    "Patched: cold-start and second-instance argv guards widened to include "
+    "linux; Settings/Shortcuts route added (1 site each)."
+)
 PY
 
 # --- Verify the result --------------------------------------------------------
-if ! grep -q "$LINUX_MARKER" "$BUNDLE"; then
-	echo "ERROR: post-patch verification failed (marker not found)." >&2
+if ! grep -q "$COLD_MARKER" "$BUNDLE" \
+	|| ! grep -q "$SECOND_MARKER" "$BUNDLE" \
+	|| ! grep -q "$SHORTCUTS_MARKER" "$BUNDLE"; then
+	echo "ERROR: post-patch verification failed (marker missing)." >&2
 	echo "       Restoring backup." >&2
 	cp -p "$BUNDLE.orig" "$BUNDLE"
 	exit 1
 fi
 
-# The widened guard must sit immediately before the argv scan (proves we hit the
-# cold-start site, not some unrelated marker placement).
-if ! grep -q '"linux"===process.platform){/\*'"$LINUX_MARKER"'\*/const' "$BUNDLE"; then
-	echo "ERROR: marker not adjacent to the argv guard. Restoring backup." >&2
+for marker in "$COLD_MARKER" "$SECOND_MARKER"; do
+	if ! grep -q \
+		'"linux"===process.platform){/\*'"$marker"'\*/const' \
+		"$BUNDLE"; then
+		echo "ERROR: $marker not adjacent to its argv guard." >&2
+		echo "       Restoring backup." >&2
+		cp -p "$BUNDLE.orig" "$BUNDLE"
+		exit 1
+	fi
+done
+
+if ! grep -qP \
+	'/\*'"$SHORTCUTS_MARKER"'\*/\)\(0,[\w$]+\.[\w$]+\)\([\w$.]+\.hubWindow,[\w$.]+\.OpenShortcutsDialog\)' \
+	"$BUNDLE"; then
+	echo "ERROR: Shortcuts route not in expected form. Restoring backup." >&2
 	cp -p "$BUNDLE.orig" "$BUNDLE"
 	exit 1
 fi
@@ -172,14 +263,15 @@ if command -v node >/dev/null; then
 	echo "node --check OK"
 fi
 
-echo "OK: Linux cold-start deep-link guard widened in $BUNDLE"
+echo "OK: Linux cold-start and second-instance deep-link guards widened"
+echo "    in $BUNDLE"
 echo
-echo "Patched startup now does (conceptually):"
+echo "Patched cold and warm starts now do (conceptually):"
 echo "  if (isWin32 || process.platform === 'linux') {"
-echo "    const url = process.argv.find(a => a.startsWith('wispr-flow:'));"
+echo "    const url = argv.find(a => a.startsWith('wispr-flow:'));"
 echo "    if (url) dispatchDeepLink(url);"
 echo "  }"
 echo
-echo "So launching from a 'wispr-flow:' link while the app is NOT running now"
-echo "delivers the URL on Linux (macOS still uses open-url; the already-running"
-echo "second-instance path is unchanged)."
+echo "Linux now delivers the URL whether Flow is stopped or already running."
+echo "Settings/Shortcuts opens Flow's native shortcut recorder."
+echo "macOS continues to use its open-url event."

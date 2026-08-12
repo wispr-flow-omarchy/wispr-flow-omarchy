@@ -8,15 +8,16 @@ our clean-room Rust helper attached. I built it the same way I build
 
 ## Files in this directory
 
-| File | Purpose |
-|---|---|
-| `patches/helper-resolver.sh` | The one mandatory app patch: adds a `'linux'` branch to the helper-path resolver in `.webpack/main/index.js`. Surgical, idempotent, keeps a `.orig` backup, verifies with a unique anchor. |
-| `patches/mac-gates.sh` | Gates the macOS "/Applications" startup guard to `darwin` so it no-ops on Linux (otherwise a blocking dialog + `app.quit()` kills launch). |
-| `build-linux.sh` | The full Phase-0 pipeline. Each step prints `[AUTO]` (runs here) or `[MANUAL]` (network/toolchain needed, documented + stubbed). |
-| `verify-patches.sh` | Post-repack safety net: static-greps the shipped `app.asar` for the Linux patch markers and fails the build if any are missing. |
-| `packaging/rpm.sh` | Packages the validated Linux tree as an installable `.rpm` (Fedora/RHEL). |
-| `patches/v8-14.8-better-sqlite3-multiple-ciphers.patch` | Clean-room V8 14.8 source-compat patch for `better-sqlite3-multiple-ciphers` (applied before `@electron/rebuild`). |
-| `README.md` | This file. |
+| File                                | Purpose                              |
+|-------------------------------------|--------------------------------------|
+| `patches/helper-resolver.sh`        | select the packaged Linux helper     |
+| `patches/mac-gates.sh`              | bypass macOS-only startup checks     |
+| `patches/linux-omarchy-status.js`   | horizontal, movable Flow bar control |
+| `build-linux.sh`                    | build the Linux packages             |
+| `verify-patches.sh`                 | reject incomplete app archives       |
+| `packaging/rpm.sh`                  | build the RPM                         |
+| `patches/v8-14.8-better-sqlite3-*`  | patch native SQLite for Electron     |
+| `README.md`                         | this guide                           |
 
 These scripts only **read** `extract/`, the prebuilt helper binary (resolved
 via `HELPER_BIN`; the helper lives in its own repo,
@@ -33,7 +34,7 @@ Wispr Flow Setup.exe ──7z──▶ *.nupkg ──7z──▶ lib/net45/{reso
                                    │
                                    ▼
    Step 2  unpack app.asar  ──────────────────────────────┐
-   Step 3  PATCH main bundle: add 'linux' helper branch    │  ← patches/helper-resolver.sh
+   Step 3  PATCH Linux main and renderer bundles           │  <- scripts/patches/
    Step 4  REBUILD better-sqlite3-multiple-ciphers+sqlite3 │     for Linux Electron 42 ABI  [MANUAL]
    Step 5  DROP win-ca / crypt32 (Windows-only)            │
    Step 6  STAGE Linux Electron 42 runtime  [MANUAL]       │

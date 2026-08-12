@@ -11,7 +11,7 @@ you supply.
 ./build.sh --build rpm
 
 # ...or supply your own installer:
-./build.sh --build rpm --exe "/path/to/Wispr Flow Setup-v1.5.695.exe"
+./build.sh --build rpm --exe "/path/to/Wispr Flow Setup-v1.6.7.exe"
 ```
 
 ## Prerequisites
@@ -50,7 +50,7 @@ proprietary installer is never committed to the repo.
 
 To build against a specific installer instead, grab
 `Wispr Flow Setup-v<version>.exe` from [wisprflow.ai](https://wisprflow.ai) and
-pass it with `--exe`. The pinned version is **1.5.695** (set in `build.sh` as
+pass it with `--exe`. The pinned version is **1.6.7** (set in `build.sh` as
 `APP_VERSION`); the auto-download verifies the upstream latest matches it and
 aborts on a mismatch, since a different installer version can drift the patch
 anchors.
@@ -64,7 +64,7 @@ By default `build.sh` fetches the latest installer; pass `--exe` to use your own
 ./build.sh
 
 # Supply your own installer:
-./build.sh --exe "/path/to/Wispr Flow Setup-v1.5.695.exe"
+./build.sh --exe "/path/to/Wispr Flow Setup-v1.6.7.exe"
 
 # Or specify the format explicitly:
 ./build.sh --build deb        # Debian/Ubuntu .deb

@@ -54,7 +54,7 @@ STAGE="$WORK_DIR/stage"                          # becomes the app's resources/ 
 # override is exported. Keep APP_VERSION in lockstep with build.sh's APP_VERSION
 # so a standalone `build-linux.sh` run stages the same version the orchestrator
 # does (a divergent default silently mislabels the staged tree).
-APP_VERSION="${APP_VERSION:-1.5.695}"
+APP_VERSION="${APP_VERSION:-1.6.7}"
 ELECTRON_MAJOR="${ELECTRON_MAJOR:-42}"
 ELECTRON_VERSION="${ELECTRON_VERSION:-42.3.0}"
 ARCH="${ARCH:-x64}"   # linux-x64; the helper + sqlite must match
@@ -185,8 +185,8 @@ step1_extract() {
   manual "This was performed by Track 1; the result lives in $EXTRACT_DIR."
   manual "To redo from a fresh installer (requires 7z):"
   cat <<'DOC'
-      7z x "Wispr Flow Setup-v1.5.695.exe" -o./extract            # -> *-full.nupkg
-      7z x "./extract/WisprFlow-1.5.695-full.nupkg" -o./extract/nupkg
+      7z x "Wispr Flow Setup-v1.6.7.exe" -o./extract            # -> *-full.nupkg
+      7z x "./extract/WisprFlow-1.6.7-full.nupkg" -o./extract/nupkg
       # Electron payload is then under extract/nupkg/lib/net45/
       # (resources/app.asar, resources/app.asar.unpacked/, resources/Release/, Wispr Flow.exe, *.pak)
 DOC
@@ -236,7 +236,7 @@ step2_stage_resources() {
 # Step 3: patch the main bundle -- add the 'linux' helper-path branch  [AUTO]
 #===============================================================================
 step3_patch_bundle() {
-  say "Step 3: patch main bundle, renderer chrome, and renderer platform flags"
+  say "Step 3: patch main bundle and renderers"
   # Patch whichever main bundle we have. Prefer the unpacked-asar copy if Step 2
   # produced one; otherwise patch the standalone extract/app bundle in place
   # (with a .orig backup, handled by the patch script).
@@ -311,6 +311,11 @@ step3_patch_bundle() {
     if [[ "$renderer_count" -eq 0 ]]; then
       warn "No renderer reads platform.isWindows under $webpack_root/renderer -- skipping treat-as-windows patch."
     fi
+
+    local app_root="${target_bundle%/.webpack/main/index.js}"
+    auto "Running linux-omarchy-status.js on $app_root"
+    node "$SCRIPT_DIR/patches/linux-omarchy-status.js" "$app_root" \
+      || warn "Omarchy status patch failed -- see output above."
   else
     warn "No main bundle available to patch."
   fi

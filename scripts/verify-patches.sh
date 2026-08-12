@@ -10,7 +10,8 @@
 #     * helper-env.sh          -> spreads session env into the helper spawn
 #     * mac-gates.sh           -> gates the macOS Applications-folder guard
 #     * linux-window-frame.sh  -> frameless hub/settings window on Linux
-#     * linux-deeplink.sh      -> cold-start wispr-flow: argv parse on Linux
+#     * linux-deeplink.sh      -> cold/warm URL delivery + Shortcuts route
+#     * linux-omarchy-status.js -> horizontal draggable bar + visibility route
 #   renderer bundles:
 #     * linux-renderer-chrome.sh -> remaps the <html> platform class linux->win32
 #     * linux-renderer-treat-as-windows.sh -> widens each renderer's isWindows
@@ -47,7 +48,13 @@ MARKERS=(
   "renderer-chrome: linux->win32 platform-class remap|F|WISPR_LINUX_WIN32_CHROME"
   "window-frame: linux frameless window branch|F|WISPR_LINUX_FRAMELESS"
   "treat-as-windows: linux widens renderer isWindows bind|F|WISPR_LINUX_RENDERER_ISWIN"
-  "deeplink: linux cold-start argv parse|F|WISPR_LINUX_DEEPLINK"
+  "deeplink: linux cold-start argv parse|F|WISPR_LINUX_DEEPLINK_COLD_START"
+  "deeplink: linux second-instance argv parse|F|WISPR_LINUX_DEEPLINK_SECOND_INSTANCE"
+  "deeplink: native Shortcuts route|F|WISPR_LINUX_DEEPLINK_SHORTCUTS_ROUTE"
+  "omarchy status: V14 patch|F|__wisprFlowOmarchyV14"
+  "omarchy status: visibility route|F|WISPR_FLOW_OMARCHY_BAR_VISIBILITY"
+  "omarchy status: visibility guard|F|Ignoring Flow bar action outside Omarchy compact mode"
+  "omarchy status: drag support|F|WISPR_FLOW_OMARCHY_BAR_DRAG"
 )
 
 missing=0
@@ -70,7 +77,7 @@ done
 if [[ "$missing" != "0" ]]; then
   echo "ERROR: app.asar is missing one or more Linux patch markers -- the bundle is" >&2
   echo "       unpatched or half-patched. Refusing to treat this as a good build." >&2
-  echo "       Re-run patch-helper-resolver.sh / patch-mac-gates.sh before repacking." >&2
+  echo "       Re-run build-linux.sh from an unpatched app bundle." >&2
   exit 1
 fi
 
