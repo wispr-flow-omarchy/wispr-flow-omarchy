@@ -209,7 +209,7 @@ cleanup_stale_lock() {
 #
 # For formats without a root post-install hook (AppImage, non-NixOS Nix): write
 # the same rule the deb/rpm packages ship, then reload + trigger udev. Escalates
-# via pkexec (graphical) or sudo. The deb/rpm/Nix builds install the rule for
+# via sudo or pkexec. The deb/rpm/Nix builds install the rule for
 # you; this is the manual one-step equivalent.
 #===============================================================================
 
@@ -229,7 +229,7 @@ UDEV
 }
 
 # Install the rule into /usr/lib/udev/rules.d and reload udev. Returns non-zero
-# on failure. Needs root: runs directly if already root, else pkexec, else sudo.
+# on failure. Needs root: use ready or terminal sudo before graphical pkexec.
 install_udev_rules() {
 	local rule_dst='/usr/lib/udev/rules.d/70-wispr-flow-uinput.rules'
 	local tmp
@@ -257,6 +257,12 @@ install_udev_rules() {
 	local rc
 	if [[ $EUID -eq 0 ]]; then
 		bash -c "$script"
+		rc=$?
+	elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+		sudo -n bash -c "$script"
+		rc=$?
+	elif command -v sudo >/dev/null 2>&1 && [[ -t 0 ]]; then
+		sudo bash -c "$script"
 		rc=$?
 	elif command -v pkexec >/dev/null 2>&1 \
 		&& [[ -n ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]]; then

@@ -79,14 +79,23 @@ teardown() {
 	[[ $output == *'TAG+="uaccess"'* ]]
 }
 
-@test "install_udev_rules loads uinput before triggering udev" {
+@test "install_udev_rules prefers sudo and loads uinput before udev" {
+	export DISPLAY=:1
 	sudo() {
-		[[ $1 == bash && $2 == -c ]]
-		printf '%s\n' "$3" > "$TEST_TMP/privileged-script"
+		if [[ $1 == -n && $2 == true ]]; then
+			return 0
+		fi
+		[[ $1 == -n && $2 == bash && $3 == -c ]]
+		printf '%s\n' "$4" > "$TEST_TMP/privileged-script"
+	}
+	pkexec() {
+		touch "$TEST_TMP/pkexec-called"
+		return 1
 	}
 
 	run install_udev_rules
 	[[ $status -eq 0 ]]
+	[[ ! -e $TEST_TMP/pkexec-called ]]
 	grep -qxF 'modprobe uinput || true' "$TEST_TMP/privileged-script"
 	local modprobe_line trigger_line
 	modprobe_line=$(grep -nFx 'modprobe uinput || true' \
@@ -95,6 +104,24 @@ teardown() {
 	trigger_line=$(grep -nF 'udevadm trigger' "$TEST_TMP/privileged-script" \
 		| head -1 | cut -d: -f1)
 	((modprobe_line < trigger_line))
+}
+
+@test "install_udev_rules uses pkexec without usable sudo or a terminal" {
+	export DISPLAY=:1
+	sudo() {
+		[[ $1 == -n && $2 == true ]] && return 1
+		touch "$TEST_TMP/interactive-sudo-called"
+		return 1
+	}
+	pkexec() {
+		[[ $1 == bash && $2 == -c ]]
+		printf '%s\n' "$3" > "$TEST_TMP/privileged-script"
+	}
+
+	run install_udev_rules
+	[[ $status -eq 0 ]]
+	[[ ! -e $TEST_TMP/interactive-sudo-called ]]
+	grep -qxF 'modprobe uinput || true' "$TEST_TMP/privileged-script"
 }
 
 @test "wispr_config_dir: falls back to HOME/.config when XDG_CONFIG_HOME unset" {
