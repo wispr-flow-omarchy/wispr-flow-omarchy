@@ -5,6 +5,8 @@
 # .exe must never be scanned. target/ catches any Rust build output.
 skip = .git*,.codespellrc,*/build-linux/*,build-linux,*/extract/*,extract,*/tools/*,tools,*.lock,*.exe,*/target/*,target,index.js
 check-hidden = true
+# Ignore the exact minified function call preserved in the 1.6.7 patch anchors.
+ignore-regex = \bte\(\)
 # ignore-words-list is intentionally minimal; Phase 8 may refine it.
 #   crate    — Rust keyword codespell flags toward "create".
 #   declRe   — JS identifier (declaration-regex) in scripts/patches/helper-resolver.sh.

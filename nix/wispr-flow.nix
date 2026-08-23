@@ -28,7 +28,7 @@ let
   # obtained yourself, mirroring `build.sh --exe`. Supply it either way:
   #
   #   * impure env var (the flake default):
-  #       WISPR_FLOW_EXE="/abs/path/Wispr Flow Setup-v1.5.619.exe" \
+  #       WISPR_FLOW_EXE="/abs/path/Wispr Flow Setup-v1.6.7.exe" \
   #         nix build .#wispr-flow-fhs --impure
   #
   #   * package override (overlay / non-flake callers):

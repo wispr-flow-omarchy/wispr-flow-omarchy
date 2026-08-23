@@ -6,9 +6,8 @@
 # (the .asar stores the JS bundle as concatenated plaintext, so a byte-grep
 # finds the markers without unpacking).
 #
-# verify-patches.sh greps a fixed set of markers (8 fixed strings + 1 Perl
-# regex). We build a tiny fixture carrying those exact marker strings (PASS)
-# and per-marker fixtures that omit one (FAIL).
+# verify-patches.sh greps a fixed marker set. We build a tiny fixture carrying
+# those exact strings (PASS) and per-marker fixtures that omit one (FAIL).
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
@@ -36,7 +35,12 @@ declare -gA MARKER_SAMPLES=(
 	[chrome]='e.classList.add(/*WISPR_LINUX_WIN32_CHROME*/"linux"===w.electron.platform.os?"win32":w.electron.platform.os);'
 	[windowframe]='"win32"===process.platform||"linux"===process.platform/*WISPR_LINUX_FRAMELESS*/&&Object.assign(t,{titleBarStyle:"hidden"});'
 	[treataswindows]='const x=((y?.platform?.isWindows??!1)||"linux"===y?.platform?.os)/*WISPR_LINUX_RENDERER_ISWIN*/;'
-	[deeplink]='if(f.H8||"linux"===process.platform){/*WISPR_LINUX_DEEPLINK*/const e=process.argv.find(x=>x.startsWith("wispr-flow:"));}'
+	[deeplinkcold]='if(f.H8||"linux"===process.platform){/*WISPR_LINUX_DEEPLINK_COLD_START*/const e=process.argv.find(x=>x.startsWith("wispr-flow:"));}'
+	[deeplinksecond]='if(f.H8||"linux"===process.platform){/*WISPR_LINUX_DEEPLINK_SECOND_INSTANCE*/const e=r.find(x=>x.startsWith("wispr-flow:"));}'
+	[deeplinkshortcuts]='else if("Shortcuts"===p/*WISPR_LINUX_DEEPLINK_SHORTCUTS_ROUTE*/)(0,d.Bn)(w,u.OpenShortcutsDialog);'
+	[omarchystatus]='const __wisprFlowOmarchyV15=!0;'
+	[omarchyvisibility]='process.__wisprFlowSetStatusEnabled(true);/*WISPR_FLOW_OMARCHY_BAR_VISIBILITY*/'
+	[omarchydrag]='const canDrag=true;/*WISPR_FLOW_OMARCHY_BAR_DRAG*/'
 )
 
 # Write a fixture app.asar-like file containing every marker, except the one
@@ -146,9 +150,25 @@ write_fixture() {
 	[[ "$output" == *'MISSING'* ]]
 }
 
-@test "verify: exits 1 when the deeplink marker is missing" {
+@test "verify: exits 1 when the cold-start deeplink marker is missing" {
 	local fixture
-	fixture="$(write_fixture deeplink)"
+	fixture="$(write_fixture deeplinkcold)"
+	run "$VERIFY_SH" "$fixture"
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *'MISSING'* ]]
+}
+
+@test "verify: exits 1 when the second-instance marker is missing" {
+	local fixture
+	fixture="$(write_fixture deeplinksecond)"
+	run "$VERIFY_SH" "$fixture"
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *'MISSING'* ]]
+}
+
+@test "verify: exits 1 when the Shortcuts route marker is missing" {
+	local fixture
+	fixture="$(write_fixture deeplinkshortcuts)"
 	run "$VERIFY_SH" "$fixture"
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *'MISSING'* ]]

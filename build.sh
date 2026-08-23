@@ -74,8 +74,8 @@ source "$script_dir/scripts/setup/download.sh"
 # Package version derivation -- mirror the claude-desktop-debian scheme.
 #
 # The release tag has the shape  v<repoVer>+wispr<wisprVer>  (e.g.
-# v1.0.0+wispr1.5.695). When a parseable tag is supplied, the package/filename
-# version becomes  <wisprVer>-<repoVer>  (e.g. 1.5.695-1.0.0) so a downstream
+# v1.0.0+wispr1.6.7). When a parseable tag is supplied, the package/filename
+# version becomes  <wisprVer>-<repoVer>  (e.g. 1.6.7-1.0.0) so a downstream
 # worker can reconstruct the release tag from a package filename. For local /
 # no-tag builds the package version stays just <wisprVer> (the APP_VERSION
 # constant), and APP_VERSION itself is NEVER altered -- staging always sees the
@@ -196,10 +196,10 @@ The Nix package is built straight from the flake, not through build.sh. It
 never fetches the proprietary app -- point it at the installer .exe you
 obtained yourself via WISPR_FLOW_EXE (needs --impure):
 
-    WISPR_FLOW_EXE="/path/Wispr Flow Setup-v1.5.695.exe" \
+    WISPR_FLOW_EXE="/path/Wispr Flow Setup-v1.6.7.exe" \
       nix build .#wispr-flow-fhs --impure   # recommended (glibc FHS wrapper)
 
-    WISPR_FLOW_EXE="/path/Wispr Flow Setup-v1.5.695.exe" \
+    WISPR_FLOW_EXE="/path/Wispr Flow Setup-v1.6.7.exe" \
       nix build .#wispr-flow --impure       # bare derivation (no FHS loader)
 
 Overlay/non-flake callers can instead override:

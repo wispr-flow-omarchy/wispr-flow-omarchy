@@ -1,12 +1,15 @@
 #!/usr/bin/env bats
 #
 # linux-patches.bats
-# Unit tests for the four renderer/main bundle patches added for the Linux port:
+# Unit tests for the renderer/main bundle patches added for the Linux port:
 #   * linux-renderer-chrome.sh           -> remaps the <html> platform class linux->win32
 #   * linux-window-frame.sh              -> frameless hub/settings window on Linux
 #   * linux-renderer-treat-as-windows.sh -> widens each renderer's isWindows bind
 #                                           (bridge stays honest; no preload touched)
-#   * linux-deeplink.sh                  -> cold-start wispr-flow: argv parse on Linux
+#   * linux-deeplink.sh                  -> cold/warm wispr-flow: URL delivery
+#                                          plus the native Shortcuts route
+#   * linux-omarchy-status.js            -> horizontal draggable Flow bar
+#                                          with an external visibility route
 #
 # The real bundle is the proprietary, gitignored app -- not available in CI -- so
 # each test drives a hermetic minified-JS FIXTURE carrying the exact anchor the
@@ -170,35 +173,97 @@ JS
 # linux-deeplink.sh
 # =============================================================================
 
-@test "deeplink: widens the cold-start win32 argv guard to include linux" {
+write_deeplink_fixture() {
 	cat > "$FIX" <<'JS'
 function L(x){}function B(x){return x}
 if(f.H8){const e=B(process.argv.find(e=>e.startsWith("wispr-flow:")||e.startsWith("wispr-flow/")));e&&L(e)}
+app.on("second-instance",(e,r)=>{if(f.H8){const u=B(r.find(e=>e.startsWith("wispr-flow:")||e.startsWith("wispr-flow/")));u&&L(u)}});
+function route(l,p){if(p)switch(l){case"Settings":if("Language"===p)(0,d.Bn)(I.RA.hubWindow,u.tv.OpenSettings,{page:"General",forceDialog:"language"});else{openSettings(p)}break}}
+if(f.H8){windowsOnly()}
 JS
+}
+
+@test "deeplink: widens cold and warm guards and adds native Shortcuts route" {
+	write_deeplink_fixture
 	run bash "$PATCH_DIR/linux-deeplink.sh" "$FIX"
 	[[ "$status" -eq 0 ]]
-	grep -q 'WISPR_LINUX_DEEPLINK' "$FIX"
-	grep -qF 'if(f.H8||"linux"===process.platform){' "$FIX"
+	grep -q 'WISPR_LINUX_DEEPLINK_COLD_START' "$FIX"
+	grep -q 'WISPR_LINUX_DEEPLINK_SECOND_INSTANCE' "$FIX"
+	grep -q 'WISPR_LINUX_DEEPLINK_SHORTCUTS_ROUTE' "$FIX"
+	[[ "$(grep -oF 'if(f.H8||"linux"===process.platform){' "$FIX" \
+		| wc -l)" -eq 2 ]]
+	grep -qF '"Shortcuts"===p/*WISPR_LINUX_DEEPLINK_SHORTCUTS_ROUTE*/)(0,d.Bn)(I.RA.hubWindow,u.tv.OpenShortcutsDialog)' "$FIX"
+	grep -qF 'if(f.H8){windowsOnly()}' "$FIX"
 	node_check "$FIX"
 }
 
 @test "deeplink: idempotent on second run" {
-	cat > "$FIX" <<'JS'
-function L(x){}function B(x){return x}
-if(f.H8){const e=B(process.argv.find(e=>e.startsWith("wispr-flow:")||e.startsWith("wispr-flow/")));e&&L(e)}
-JS
+	write_deeplink_fixture
 	bash "$PATCH_DIR/linux-deeplink.sh" "$FIX"
 	assert_idempotent "$PATCH_DIR/linux-deeplink.sh" "$FIX"
 }
 
-@test "deeplink: leaves the cross-platform second-instance handler untouched" {
-	# second-instance scans r.find(...), NOT process.argv.find(...) -- the anchor
-	# must not match it, so the patch must bail (0 cold-start guards present).
+@test "deeplink: bails when the second-instance guard is absent" {
 	cat > "$FIX" <<'JS'
 function L(x){}function B(x){return x}
-app.on("second-instance",(e,r)=>{if(f.H8){const u=B(r.find(e=>e.startsWith("wispr-flow:")));u&&L(u)}});
+if(f.H8){const e=B(process.argv.find(e=>e.startsWith("wispr-flow:")||e.startsWith("wispr-flow/")));e&&L(e)}
+function route(l,p){if(p)switch(l){case"Settings":if("Language"===p)(0,d.Bn)(I.RA.hubWindow,u.tv.OpenSettings,{page:"General",forceDialog:"language"});else{openSettings(p)}break}}
 JS
 	run bash "$PATCH_DIR/linux-deeplink.sh" "$FIX"
 	[[ "$status" -ne 0 ]]
 	! grep -q 'WISPR_LINUX_DEEPLINK' "$FIX"
+}
+
+@test "deeplink: bails when the cold-start guard is absent" {
+	cat > "$FIX" <<'JS'
+function L(x){}function B(x){return x}
+app.on("second-instance",(e,r)=>{if(f.H8){const u=B(r.find(e=>e.startsWith("wispr-flow:")||e.startsWith("wispr-flow/")));u&&L(u)}});
+function route(l,p){if(p)switch(l){case"Settings":if("Language"===p)(0,d.Bn)(I.RA.hubWindow,u.tv.OpenSettings,{page:"General",forceDialog:"language"});else{openSettings(p)}break}}
+JS
+	run bash "$PATCH_DIR/linux-deeplink.sh" "$FIX"
+	[[ "$status" -ne 0 ]]
+	! grep -q 'WISPR_LINUX_DEEPLINK' "$FIX"
+}
+
+@test "deeplink: bails when the Settings/Language route is absent" {
+	cat > "$FIX" <<'JS'
+function L(x){}function B(x){return x}
+if(f.H8){const e=B(process.argv.find(e=>e.startsWith("wispr-flow:")||e.startsWith("wispr-flow/")));e&&L(e)}
+app.on("second-instance",(e,r)=>{if(f.H8){const u=B(r.find(e=>e.startsWith("wispr-flow:")||e.startsWith("wispr-flow/")));u&&L(u)}});
+JS
+	run bash "$PATCH_DIR/linux-deeplink.sh" "$FIX"
+	[[ "$status" -ne 0 ]]
+	! grep -q 'WISPR_LINUX_DEEPLINK' "$FIX"
+}
+
+# =============================================================================
+# linux-omarchy-status.js replacement guards
+# =============================================================================
+
+write_status_guard_fixture() {
+	local main="$TEST_TMP/app/.webpack/main/index.js"
+	local status="$TEST_TMP/app/.webpack/renderer/status"
+	mkdir -p "$(dirname "$main")" "$status"
+	printf '%s\n' "$1" > "$main"
+	: > "$status/preload.js"
+	: > "$status/index.js"
+}
+
+@test "omarchy status: rejects a partial V15 patch" {
+	command -v node >/dev/null || skip "node is required"
+	write_status_guard_fixture 'const __wisprFlowOmarchyV15=!0;'
+
+	run node "$PATCH_DIR/linux-omarchy-status.js" "$TEST_TMP/app"
+	[[ "$status" -ne 0 ]]
+	[[ "$output" == *'partial Wispr Flow Omarchy V15 patch found'* ]]
+}
+
+@test "omarchy status: has one unconditional Omarchy launch path" {
+	local patch="$PATCH_DIR/linux-omarchy-status.js"
+
+	grep -q '__wisprFlowOmarchyV15' "$patch"
+	grep -q 'Omarchy uses the tray control' "$patch"
+	! grep -q 'WISPR_FLOW_KEYBINDING_LAUNCH' "$patch"
+	! grep -q 'WISPR_FLOW_COMPACT_STATUS' "$patch"
+	! grep -q 'compactStatus' "$patch"
 }
