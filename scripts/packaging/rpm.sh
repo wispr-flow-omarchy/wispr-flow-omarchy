@@ -260,6 +260,9 @@ cp -a "$PKGROOT"/. %{buildroot}/
 %post
 # Reload udev so the input-access rule applies without a reboot (uinput write +
 # /dev/input read).
+if [ -x /usr/bin/modprobe ]; then
+  /usr/bin/modprobe uinput 2>/dev/null || true
+fi
 if [ -x /usr/bin/udevadm ]; then
   /usr/bin/udevadm control --reload-rules 2>/dev/null || true
   /usr/bin/udevadm trigger --subsystem-match=misc --sysname-match=uinput 2>/dev/null || true

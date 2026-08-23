@@ -244,6 +244,9 @@ install_udev_rules() {
 	printf -v script '%s\n' \
 		'set -e' \
 		"install -D -m 0644 '$tmp' '$rule_dst'" \
+		'if command -v modprobe >/dev/null 2>&1; then' \
+		'\tmodprobe uinput || true' \
+		'fi' \
 		'if command -v udevadm >/dev/null 2>&1; then' \
 		'	udevadm control --reload-rules || true' \
 		'	udevadm trigger --subsystem-match=misc --sysname-match=uinput || true' \
