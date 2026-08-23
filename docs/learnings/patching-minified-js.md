@@ -249,11 +249,10 @@ node -e '
 '
 ```
 
-`NO MATCH` means the regex is wrong for the current bundle. Note Wispr's
-`resolve-installer-url.sh` tracks the upstream `latest` redirect and does **not**
-pin a SHA-256 (the build logs `No SHA-256 hash … skipping verification`), so
-"the current bytes" is whatever `latest` resolves to right now — re-pull before
-testing rather than trusting a stale local extract.
+`NO MATCH` means the regex is wrong for the current bundle. Normal builds fetch
+the exact `APP_VERSION` that the patches target and verify its repository-pinned
+SHA-256. Use the resolver without `--version` only to inspect the current
+upstream manifest before starting an explicit port.
 
 ## End-to-end verification (post-build)
 

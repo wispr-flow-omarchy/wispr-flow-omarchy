@@ -197,7 +197,7 @@ DOC
 #===============================================================================
 step2_stage_resources() {
   say "Step 2: stage resources and unpack app.asar"
-  rm -rf "$WORK_DIR"
+  rm -rf "$STAGE" "$WORK_DIR/app.asar.contents"
   mkdir -p "$STAGE"
 
   # Copy the non-asar resources (Release/, assets, migrations, etc.) but NOT the

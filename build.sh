@@ -11,7 +11,7 @@
 #   parse_arguments
 #     --test-flags? -> print resolved flags + exit 0 (NO build)
 #   check_dependencies
-#   download_installer  (--exe, else fetch latest) -> staged installer
+#   download_installer  (--exe, else fetch pinned) -> staged installer
 #   scripts/build-linux.sh           -> patch + native + stage (ARCH/version via env)
 #   fetch_electron (if not staged)   -> Linux Electron, launcher renamed wispr-flow
 #   run_packaging                    -> scripts/packaging/<fmt>.sh
@@ -259,7 +259,7 @@ print_resolved_flags() {
 	echo "Arch (electron):$electron_arch"
 	echo "Distro family:  $distro_family"
 	echo "Clean:          $clean_action"
-	echo "Exe:            ${local_exe_path:-<none: fetch latest upstream>}"
+	echo "Exe:            ${local_exe_path:-<none: fetch pinned upstream>}"
 	echo "Release tag:    ${release_tag:-<none>}"
 	echo "App version:    $APP_VERSION"
 	echo "Package version:$pkg_version"
@@ -289,7 +289,7 @@ main() {
 
 	check_dependencies
 
-	# Phase 2: resolve the installer (--exe, else fetch the latest upstream),
+	# Phase 2: resolve the installer (--exe, else fetch the pinned upstream),
 	# then 7z-extract it into the extract/ tree that staging consumes
 	# (idempotent -- reuses a hand-prepared tree).
 	download_installer

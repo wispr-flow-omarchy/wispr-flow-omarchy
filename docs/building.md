@@ -51,13 +51,12 @@ proprietary installer is never committed to the repo.
 To build against a specific installer instead, grab
 `Wispr Flow Setup-v<version>.exe` from [wisprflow.ai](https://wisprflow.ai) and
 pass it with `--exe`. The pinned version is **1.6.7** (set in `build.sh` as
-`APP_VERSION`); the auto-download verifies the upstream latest matches it and
-aborts on a mismatch, since a different installer version can drift the patch
-anchors.
+`APP_VERSION`). A different installer version can drift the patch anchors and
+must be ported explicitly.
 
 ## Building
 
-By default `build.sh` fetches the latest installer; pass `--exe` to use your own.
+By default `build.sh` fetches the pinned installer; pass `--exe` to use your own.
 
 ```bash
 # Auto-detect format from your distro (downloads the installer):
@@ -86,7 +85,7 @@ problem, the real work lives in those two layers underneath.
 |---|---|---|
 | `-b`, `--build` | `deb` `rpm` `appimage` `nix` | Output format. Defaults to your distro's native format. |
 | `--arch` | `amd64` `arm64` | Target architecture (overrides host detection). |
-| `-e`, `--exe` | path | Installer .exe to use. Optional; default: fetch the latest from Wispr's endpoint. |
+| `-e`, `--exe` | path | Installer .exe to use. Optional; default: fetch the pinned version. |
 | `-c`, `--clean` | `yes` `no` | Remove intermediate build files when done (default `no`). |
 | `-r`, `--release-tag` | string | Optional tag embedded in the package version. |
 | `--test-flags` | — | Parse + print the resolved flags, then exit **without** building. |
