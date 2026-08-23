@@ -79,6 +79,23 @@ teardown() {
 	[[ $output == *'TAG+="uaccess"'* ]]
 }
 
+@test "install_udev_rules loads uinput before triggering udev" {
+	sudo() {
+		[[ $1 == bash && $2 == -c ]]
+		printf '%s\n' "$3" > "$TEST_TMP/privileged-script"
+	}
+
+	run install_udev_rules
+	[[ $status -eq 0 ]]
+	grep -qF 'modprobe uinput || true' "$TEST_TMP/privileged-script"
+	local modprobe_line trigger_line
+	modprobe_line=$(grep -nF 'modprobe uinput' "$TEST_TMP/privileged-script" \
+		| cut -d: -f1)
+	trigger_line=$(grep -nF 'udevadm trigger' "$TEST_TMP/privileged-script" \
+		| head -1 | cut -d: -f1)
+	((modprobe_line < trigger_line))
+}
+
 @test "wispr_config_dir: falls back to HOME/.config when XDG_CONFIG_HOME unset" {
 	unset XDG_CONFIG_HOME
 	[[ $(wispr_config_dir) == "$HOME/.config/Wispr Flow" ]]

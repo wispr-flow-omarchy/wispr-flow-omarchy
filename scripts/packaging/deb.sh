@@ -234,6 +234,9 @@ RULE_DST="/usr/lib/udev/rules.d/70-\$NAME-uinput.rules"
 if [ -f "\$RULE_SRC" ]; then
   mkdir -p /usr/lib/udev/rules.d
   install -m 0644 "\$RULE_SRC" "\$RULE_DST"
+  if command -v modprobe >/dev/null 2>&1; then
+    modprobe uinput 2>/dev/null || true
+  fi
   if command -v udevadm >/dev/null 2>&1; then
     udevadm control --reload-rules 2>/dev/null || true
     udevadm trigger --subsystem-match=misc --sysname-match=uinput 2>/dev/null || true
