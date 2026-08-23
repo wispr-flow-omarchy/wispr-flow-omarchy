@@ -245,7 +245,7 @@ install_udev_rules() {
 		'set -e' \
 		"install -D -m 0644 '$tmp' '$rule_dst'" \
 		'if command -v modprobe >/dev/null 2>&1; then' \
-		'\tmodprobe uinput || true' \
+		'modprobe uinput || true' \
 		'fi' \
 		'if command -v udevadm >/dev/null 2>&1; then' \
 		'	udevadm control --reload-rules || true' \

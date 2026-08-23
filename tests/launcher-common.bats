@@ -87,9 +87,10 @@ teardown() {
 
 	run install_udev_rules
 	[[ $status -eq 0 ]]
-	grep -qF 'modprobe uinput || true' "$TEST_TMP/privileged-script"
+	grep -qxF 'modprobe uinput || true' "$TEST_TMP/privileged-script"
 	local modprobe_line trigger_line
-	modprobe_line=$(grep -nF 'modprobe uinput' "$TEST_TMP/privileged-script" \
+	modprobe_line=$(grep -nFx 'modprobe uinput || true' \
+		"$TEST_TMP/privileged-script" \
 		| cut -d: -f1)
 	trigger_line=$(grep -nF 'udevadm trigger' "$TEST_TMP/privileged-script" \
 		| head -1 | cut -d: -f1)
