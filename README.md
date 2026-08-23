@@ -97,6 +97,9 @@ I documented the environment variables, state locations, the uinput udev rule,
 clipboard dependencies, the GNOME extension, and AT-SPI in
 [`docs/configuration.md`](docs/configuration.md).
 
+On Omarchy, the app starts in compact tray mode without opening the Hub. Use
+**Open Wispr Flow** from its tray menu when you want the full window.
+
 ## Troubleshooting
 
 Run `wispr-flow --doctor` first. It's the built-in diagnostic, and it checks the

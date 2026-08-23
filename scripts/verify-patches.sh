@@ -51,9 +51,8 @@ MARKERS=(
   "deeplink: linux cold-start argv parse|F|WISPR_LINUX_DEEPLINK_COLD_START"
   "deeplink: linux second-instance argv parse|F|WISPR_LINUX_DEEPLINK_SECOND_INSTANCE"
   "deeplink: native Shortcuts route|F|WISPR_LINUX_DEEPLINK_SHORTCUTS_ROUTE"
-  "omarchy status: V14 patch|F|__wisprFlowOmarchyV14"
+  "omarchy status: V15 patch|F|__wisprFlowOmarchyV15"
   "omarchy status: visibility route|F|WISPR_FLOW_OMARCHY_BAR_VISIBILITY"
-  "omarchy status: visibility guard|F|Ignoring Flow bar action outside Omarchy compact mode"
   "omarchy status: drag support|F|WISPR_FLOW_OMARCHY_BAR_DRAG"
 )
 

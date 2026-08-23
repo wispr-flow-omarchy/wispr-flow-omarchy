@@ -249,24 +249,21 @@ write_status_guard_fixture() {
 	: > "$status/index.js"
 }
 
-@test "omarchy status: rejects superseded V13 without changing the bundle" {
+@test "omarchy status: rejects a partial V15 patch" {
 	command -v node >/dev/null || skip "node is required"
-	write_status_guard_fixture 'const __wisprFlowOmarchyV13=!0;'
-	local main="$TEST_TMP/app/.webpack/main/index.js"
-	local before
-	before="$(sha256sum "$main" | cut -d' ' -f1)"
+	write_status_guard_fixture 'const __wisprFlowOmarchyV15=!0;'
 
 	run node "$PATCH_DIR/linux-omarchy-status.js" "$TEST_TMP/app"
 	[[ "$status" -ne 0 ]]
-	[[ "$output" == *'superseded app patch found'* ]]
-	[[ "$before" == "$(sha256sum "$main" | cut -d' ' -f1)" ]]
+	[[ "$output" == *'partial Wispr Flow Omarchy V15 patch found'* ]]
 }
 
-@test "omarchy status: rejects a partial V14 patch" {
-	command -v node >/dev/null || skip "node is required"
-	write_status_guard_fixture 'const __wisprFlowOmarchyV14=!0;'
+@test "omarchy status: has one unconditional Omarchy launch path" {
+	local patch="$PATCH_DIR/linux-omarchy-status.js"
 
-	run node "$PATCH_DIR/linux-omarchy-status.js" "$TEST_TMP/app"
-	[[ "$status" -ne 0 ]]
-	[[ "$output" == *'partial Wispr Flow Omarchy V14 patch found'* ]]
+	grep -q '__wisprFlowOmarchyV15' "$patch"
+	grep -q 'Omarchy uses the tray control' "$patch"
+	! grep -q 'WISPR_FLOW_KEYBINDING_LAUNCH' "$patch"
+	! grep -q 'WISPR_FLOW_COMPACT_STATUS' "$patch"
+	! grep -q 'compactStatus' "$patch"
 }

@@ -38,9 +38,8 @@ declare -gA MARKER_SAMPLES=(
 	[deeplinkcold]='if(f.H8||"linux"===process.platform){/*WISPR_LINUX_DEEPLINK_COLD_START*/const e=process.argv.find(x=>x.startsWith("wispr-flow:"));}'
 	[deeplinksecond]='if(f.H8||"linux"===process.platform){/*WISPR_LINUX_DEEPLINK_SECOND_INSTANCE*/const e=r.find(x=>x.startsWith("wispr-flow:"));}'
 	[deeplinkshortcuts]='else if("Shortcuts"===p/*WISPR_LINUX_DEEPLINK_SHORTCUTS_ROUTE*/)(0,d.Bn)(w,u.OpenShortcutsDialog);'
-	[omarchystatus]='const __wisprFlowOmarchyV14=!0;'
+	[omarchystatus]='const __wisprFlowOmarchyV15=!0;'
 	[omarchyvisibility]='process.__wisprFlowSetStatusEnabled(true);/*WISPR_FLOW_OMARCHY_BAR_VISIBILITY*/'
-	[omarchyvisibilityguard]='console.warn("Ignoring Flow bar action outside Omarchy compact mode");'
 	[omarchydrag]='const canDrag=true;/*WISPR_FLOW_OMARCHY_BAR_DRAG*/'
 )
 
