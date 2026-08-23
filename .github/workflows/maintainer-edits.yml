@@ -30,10 +30,11 @@ jobs:
   check-maintainer-edits:
     name: Require maintainer edits on fork PRs
     runs-on: ubuntu-latest
-    # Only fork PRs can have maintainer edits disabled; same-repo branches are
-    # always editable, and maintainer_can_modify is reported false for them.
+    # Same-repo branches are always editable, even when this repository is
+    # itself a fork. Only compare distinct head and base repositories.
     if: >-
-      github.event.pull_request.head.repo.fork &&
+      github.event.pull_request.head.repo.full_name !=
+      github.event.pull_request.base.repo.full_name &&
       github.event.pull_request.maintainer_can_modify == false
 
     steps:
