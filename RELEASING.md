@@ -72,18 +72,12 @@ Before the first real release:
   APT/DNF jobs keep the binaries in `gh-pages` and the smoke tests skip; once
   live, binaries are stripped and served by 302-redirect to Release assets.
 
-## Two release flavors
+## Release inputs
 
-- **Upstream-tracking retag (no human action).** `check-wispr-version` runs
-  daily: it resolves the latest Wispr Flow version from
-  `dl.wisprflow.ai/windows/latest`, and when it differs from
-  `WISPR_FLOW_VERSION` it bumps `APP_VERSION` in `build.sh` and the version in
-  `nix/wispr-flow.nix`, updates the variable, and pushes a new tag with the same
-  `REPO_VERSION` and a new `+wispr{X.Y.Z}` suffix. These don't get CHANGELOG
-  entries — the tag suffix tracks them.
-
-- **Project release.** You bumped `REPO_VERSION` because you shipped wrapper or
-  packaging changes. Follow the checklist below.
+`check-wispr-version` compares the audited `APP_VERSION` with Wispr's latest
+manifest. It never bumps or tags automatically: a new proprietary bundle needs
+its patch anchors ported and verified first. Project releases follow the
+checklist below after that work is complete.
 
 ## Pre-release checklist (project release)
 

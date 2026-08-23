@@ -10,6 +10,7 @@
 #   project_root, work_dir, local_exe_path, electron_version, electron_arch
 # Sets globals:
 #   installer_exe_path   (path to the .exe used for this build)
+#   installer_sha256     (vendor checksum for a resolved installer)
 #
 # Network note: fetch_electron() and download_installer() perform real
 # downloads. download_installer() fetches the proprietary app from Wispr's
@@ -33,21 +34,23 @@ _fetch() {
 	local url="$1" dest="$2" tool
 	tool=$(_downloader)
 	if [[ $tool == wget ]]; then
-		wget -O "$dest" "$url"
+		wget -q -O "$dest" "$url"
 	else
-		curl -fSL -o "$dest" "$url"
+		curl -fsSL -o "$dest" "$url"
 	fi
 }
 
 #-------------------------------------------------------------------------------
 # download_installer -- obtain the Wispr Flow Windows installer for this build.
 #   * --exe <path> supplied: repackage that local installer; no network fetch.
-#   * --exe absent (default): resolve the latest upstream URL and download it
+#   * --exe absent (default): resolve the pinned upstream URL and download it
 #     (see fetch_installer). The proprietary app is never bundled or committed
 #     to the repo -- it is fetched/supplied fresh each build.
-# A SHA-256 is verified IF one is known (WISPR_EXE_SHA256 env or installer.sha256
-# file). Upstream publishes no stable hash, so absence only warns.
+# A SHA-256 is verified when supplied by the release manifest, environment, or
+# installer.sha256 file. Explicit local values take precedence.
 #-------------------------------------------------------------------------------
+installer_sha256=''
+
 download_installer() {
 	say 'Locate Wispr Flow installer'
 
@@ -65,35 +68,34 @@ download_installer() {
 		expected_sha="$WISPR_EXE_SHA256"
 	elif [[ -f "$project_root/installer.sha256" ]]; then
 		expected_sha=$(awk '{print $1; exit}' "$project_root/installer.sha256")
+	elif [[ -n $installer_sha256 ]]; then
+		expected_sha="$installer_sha256"
 	fi
 	verify_sha256 "$installer_exe_path" "$expected_sha" 'Wispr Flow installer' \
 		|| die 'Installer checksum verification failed'
 }
 
 #-------------------------------------------------------------------------------
-# fetch_installer -- resolve the latest upstream installer URL and download it.
-# Used when --exe is not supplied. Mirrors what CI does, via the same
-# resolve-installer-url.sh helper. Guards that the resolved version matches the
-# pinned APP_VERSION (the version the Linux patches were verified against), so a
-# fetched build can't silently mislabel or run against an un-audited bundle; on
-# mismatch it aborts with guidance to pass --exe. The download is cached under
-# downloads/ and reused on re-runs.
+# fetch_installer -- resolve the exact supported installer URL and download it.
+# The patches are bundle-specific, so a normal build never follows "latest".
+# The separate release monitor uses the resolver's manifest mode to discover a
+# new version for an explicit port. Downloads are cached between builds.
 #-------------------------------------------------------------------------------
 fetch_installer() {
 	local resolver="$project_root/scripts/setup/resolve-installer-url.sh"
 	[[ -x $resolver ]] || die "installer resolver not found: $resolver"
 
-	auto 'No --exe supplied; resolving the latest Wispr Flow installer'
+	auto "No --exe supplied; resolving pinned Wispr Flow ${APP_VERSION} installer"
 	local resolved url version
-	resolved=$("$resolver") \
+	resolved=$("$resolver" --version "$APP_VERSION") \
 		|| die 'Failed to resolve the Wispr Flow installer URL (pass --exe to use a local installer)'
 	url=$(printf '%s\n' "$resolved" | sed -nE 's/^URL=//p')
 	version=$(printf '%s\n' "$resolved" | sed -nE 's/^VERSION=//p')
+	installer_sha256=$(printf '%s\n' "$resolved" | sed -nE 's/^SHA256=//p')
 	[[ -n $url ]] || die 'installer resolver returned no URL'
 
 	if [[ -n $version && $version != "${APP_VERSION:-}" ]]; then
-		die "upstream latest is ${version} but this build is pinned to ${APP_VERSION}.
-Pass --exe with a ${APP_VERSION} installer, or update the pinned version first."
+		die "installer resolver returned ${version}; expected supported version ${APP_VERSION}"
 	fi
 
 	local download_dir="$work_dir/downloads"

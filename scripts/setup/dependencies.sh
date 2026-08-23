@@ -61,13 +61,21 @@ check_dependencies() {
 		[cargo]='cargo' [dpkg-deb]='dpkg' [rpmbuild]='rpm-build'
 		[python3]='python3' [wget]='wget' [curl]='curl'
 	)
+	declare -A arch_pkgs=(
+		[7z]='7zip' [wrestool]='icoutils' [icotool]='icoutils'
+		[convert]='imagemagick' [rsync]='rsync' [node]='nodejs' [npx]='npm'
+		[cargo]='rust' [dpkg-deb]='dpkg' [rpmbuild]='rpm-tools'
+		[python3]='python' [wget]='wget' [curl]='curl'
+	)
 
 	local deps_to_install=''
+	local missing_commands=''
 
 	# Resolve the package name for a command for the current distro family.
 	_pkg_for() {
 		local cmd="$1"
 		case "$distro_family" in
+			arch)   printf '%s' "${arch_pkgs[$cmd]:-}" ;;
 			debian) printf '%s' "${debian_pkgs[$cmd]:-}" ;;
 			rpm)    printf '%s' "${rpm_pkgs[$cmd]:-}" ;;
 			*)      printf '' ;;
@@ -89,7 +97,7 @@ check_dependencies() {
 		if ! check_command "$cmd"; then
 			pkg=$(_pkg_for "$cmd")
 			if [[ -z $pkg ]]; then
-				warn "Cannot auto-install '$cmd' on '$distro_family'; install it manually."
+				missing_commands="$missing_commands $cmd"
 				continue
 			fi
 			_queue_pkg "$pkg"
@@ -99,8 +107,16 @@ check_dependencies() {
 	# wget OR curl satisfies the download requirement.
 	if ! command -v wget >/dev/null 2>&1 && ! command -v curl >/dev/null 2>&1; then
 		echo 'Neither wget nor curl found'
-		_queue_pkg "$(_pkg_for curl)"
+		pkg=$(_pkg_for curl)
+		if [[ -n $pkg ]]; then
+			_queue_pkg "$pkg"
+		else
+			missing_commands="$missing_commands wget-or-curl"
+		fi
 	fi
+
+	[[ -z $missing_commands ]] \
+		|| die "Cannot auto-install on '$distro_family'. Missing commands:$missing_commands"
 
 	if [[ -z $deps_to_install ]]; then
 		echo 'All required build dependencies are present.'
@@ -125,6 +141,11 @@ check_dependencies() {
 	fi
 
 	case "$distro_family" in
+		arch)
+			# shellcheck disable=SC2086  # word-splitting deps_to_install is intended
+			$sudo_cmd pacman -S --needed --noconfirm $deps_to_install \
+				|| die "'pacman -S' failed"
+			;;
 		debian)
 			$sudo_cmd apt update || die "'apt update' failed"
 			# shellcheck disable=SC2086  # word-splitting deps_to_install is intended

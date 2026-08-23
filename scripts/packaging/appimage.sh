@@ -45,6 +45,8 @@ COMPONENT_ID='ai.wisprflow.WisprFlow'
 
 WORK="$PROJECT_ROOT/build-linux/appimage"
 APPDIR="$WORK/${COMPONENT_ID}.AppDir"
+DOWNLOADS="$PROJECT_ROOT/build-linux/downloads"
+APPIMAGETOOL_VERSION='1.9.1'
 
 say(){ printf '\n\033[1;34m== %s\033[0m\n' "$*"; }
 die(){ printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -224,23 +226,39 @@ appimagetool=''
 if command -v appimagetool >/dev/null 2>&1; then
   appimagetool="$(command -v appimagetool)"
 else
-  for a in x86_64 aarch64; do
-    cand="$WORK/appimagetool-${a}.AppImage"
-    [[ -f $cand ]] && { appimagetool="$cand"; break; }
-  done
-fi
-
-if [[ -z $appimagetool ]]; then
-  warn "appimagetool not found; AppDir staged at $APPDIR but no .AppImage built."
-  echo "  To build: install appimagetool (or place appimagetool-<arch>.AppImage" >&2
-  echo "  under $WORK), then re-run this maker." >&2
-  echo "  Download: https://github.com/AppImage/appimagetool/releases" >&2
-  exit 0
+  case "$ARCH" in
+    x86_64)
+      appimagetool_sha256='ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0' ;;
+    aarch64)
+      appimagetool_sha256='f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158' ;;
+    *) die "no appimagetool build for architecture: $ARCH" ;;
+  esac
+  mkdir -p "$DOWNLOADS"
+  appimagetool="$DOWNLOADS/appimagetool-${APPIMAGETOOL_VERSION}-${ARCH}.AppImage"
+  if [[ ! -f $appimagetool ]]; then
+    say "Fetch appimagetool for $ARCH"
+    url="https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-${ARCH}.AppImage"
+    partial="${appimagetool}.part"
+    if command -v curl >/dev/null 2>&1; then
+      curl -fSL -o "$partial" "$url" \
+        || die 'could not download appimagetool'
+    elif command -v wget >/dev/null 2>&1; then
+      wget -O "$partial" "$url" \
+        || die 'could not download appimagetool'
+    else
+      die 'curl or wget is required to download appimagetool'
+    fi
+    mv "$partial" "$appimagetool"
+  fi
+  printf '%s  %s\n' "$appimagetool_sha256" "$appimagetool" \
+    | sha256sum -c - >/dev/null || die 'appimagetool checksum mismatch'
+  chmod 0755 "$appimagetool"
 fi
 
 say "Building AppImage with $appimagetool"
 OUT="$WORK/${NAME}-${APP_VERSION}-${ARCH}.AppImage"
 export ARCH
+export APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}"
 
 # In CI, embed update information and emit a .zsync delta so published AppImages
 # self-update via AppImageUpdate / appimaged. Local builds skip it (there is no

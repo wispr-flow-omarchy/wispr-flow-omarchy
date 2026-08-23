@@ -12,7 +12,7 @@
 #   arch_deb        Debian naming:              amd64  | arm64
 #   arch_rpm        RPM naming:                 x86_64 | aarch64
 #   electron_arch   Electron release naming:    x64    | arm64
-#   distro_family   debian | rpm | nix | unknown
+#   distro_family   arch | debian | rpm | nix | unknown
 #   build_format    deb | rpm | appimage | nix  (default from distro_family)
 #   clean_action    yes | no
 #   local_exe_path  path to a local installer .exe (from --exe), or empty
@@ -73,6 +73,11 @@ detect_distro() {
 	if [[ -f /etc/NIXOS ]]; then
 		distro_family='nix'
 		echo 'Detected NixOS'
+	elif [[ -f /etc/arch-release ]] \
+		|| { [[ -f /etc/os-release ]] \
+			&& grep -Eqi '^(ID|ID_LIKE)=.*arch' /etc/os-release; }; then
+		distro_family='arch'
+		echo 'Detected Arch-based distribution'
 	elif [[ -f /etc/fedora-release ]]; then
 		distro_family='rpm'
 		echo "Detected Fedora: $(cat /etc/fedora-release)"
@@ -192,7 +197,7 @@ Options:
       --arch <arch>      Target architecture: amd64 | arm64
                          (default: detected host arch -> '$arch')
   -e, --exe <path>       Path to a Wispr Flow installer .exe you obtained
-                         yourself (optional; default: fetch the latest installer
+                         yourself (optional; default: fetch the pinned installer
                          from Wispr's official endpoint)
   -c, --clean <yes|no>   Remove intermediate build files when done (default: no)
   -r, --release-tag <t>  Optional release tag to embed in the package version

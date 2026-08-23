@@ -66,7 +66,8 @@ jobs:
 
       - name: Resolve and download Wispr Flow installer
         run: |
-          scripts/setup/resolve-installer-url.sh > resolved.txt
+          version=$(sed -nE "s/^readonly APP_VERSION='([^']+)'/\1/p" build.sh)
+          scripts/setup/resolve-installer-url.sh --version "$version" > resolved.txt
           url=$(grep '^URL=' resolved.txt | cut -d= -f2-)
           [[ -n "$url" ]] || { echo "::error::no installer URL resolved"; exit 1; }
           echo "Downloading installer: $url"
