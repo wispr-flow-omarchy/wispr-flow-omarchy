@@ -50,12 +50,21 @@ sudo dnf install wispr-flow
 
 ```bash
 yay -S wispr-flow-appimage   # or: paru -S wispr-flow-appimage
+wispr-flow --install-udev-rules
+wispr-flow --doctor
 ```
+
+The AUR package is AppImage-based, so it cannot install its input-device rule
+automatically. The one-time setup above grants the active desktop session the
+access needed for text injection, push-to-talk, and the shortcut recorder.
 
 ### Manual download
 
 Grab a `.deb`, `.rpm`, or `.AppImage` from the
 [Releases page](https://github.com/wispr-flow-linux/wispr-flow-linux/releases).
+Manual AppImage installs also need `--install-udev-rules`; the `.deb` and `.rpm`
+packages install the rule automatically. See the full installation guide for
+the exact command.
 
 > [!NOTE]
 > These published packages bundle the proprietary Wispr Flow app, downloaded from
